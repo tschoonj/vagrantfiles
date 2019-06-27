@@ -1,0 +1,7 @@
+- hosts: all
+  roles:
+    - role: palmerc.ansible_role_xcode
+      xcode_version: 10.1
+      xcode_src: Xcode_10.1.xip
+    - role: lhazlewood.xcode_clt
+    - role: ansiblebit.macports

@@ -1,0 +1,49 @@
+---
+# task file to install macports using pkgutil
+
+- name: darwin | macosx | check if package installer file exists
+  stat:
+    path="/tmp/{{ macports_installer[ 'macosx' ][ major_version ][ 'name' ] }}"
+  register: f
+
+- name: darwin | macosx | check previous installation
+  stat:
+    path=/opt/local/bin/port
+  register: port
+
+- name: darwin | macosx | download macports package installer
+  get_url:
+    url="{{ macports_tarball_url }}/{{ macports_installer[ 'macosx' ][ major_version ][ 'name' ] }}"
+    dest=/tmp
+    owner=root
+    group=wheel
+    mode=0644
+  become: yes
+  when: not port.stat.exists or macports_force_install
+
+- name: darwin | macosx | install macports
+  command: "installer -verbose -pkg {{ macports_installer[ 'macosx' ][ major_version ][ 'name' ] }} -target /"
+  args:
+    chdir: /tmp/
+  become: yes
+  when: not port.stat.exists or macports_force_install
+
+- name: darwin | macosx | update ports tree and rebuild installation if needed
+  command: /opt/local/bin/port -v selfupdate
+  when: macports_selfupdate == True
+  become: yes
+
+- name: darwin | macosx | remove macports package installer
+  file:
+    path="/tmp/{{ macports_installer[ 'macosx' ][ major_version ][ 'name' ] }}"
+    state=absent
+  become: yes
+
+- name: darwin | macosx | upgrade outdated ports
+  command: /opt/local/bin/port -v upgrade outdated
+  register: port_upgrade_outdated
+  changed_when: port_upgrade_outdated.rc != 0 and not 'Nothing to upgrade.' in port_upgrade_outdated.stdout
+  failed_when: port_upgrade_outdated.rc != 0 and 'Error' in port_upgrade_outdated.stdout
+  when: macports_upgrade_outdated == True
+  become: yes 
+

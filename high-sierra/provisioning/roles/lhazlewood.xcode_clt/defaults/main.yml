@@ -1,0 +1,7 @@
+---
+clt_xcode_version: 10.1
+clt_macos_version: 10.13
+clt_src: Command_Line_Tools_macOS_{{ clt_macos_version }}_for_Xcode_{{  clt_xcode_version}}.dmg
+clt_mount_path: /Volumes/Command Line Developer Tools
+clt_pkg: "{{ clt_mount_path }}/Command Line Tools (macOS High Sierra version {{clt_macos_version}}).pkg"
+

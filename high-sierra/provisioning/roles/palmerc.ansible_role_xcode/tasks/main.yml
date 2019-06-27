@@ -1,0 +1,2 @@
+---
+- include: "xcode_{{ xcode_major_version }}.yml"

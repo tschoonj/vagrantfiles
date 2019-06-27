@@ -1,0 +1,31 @@
+---
+# file: macports/defaults/main.yml
+#
+# defaults file
+# https://distfiles.macports.org/MacPorts/MacPorts-2.5.4-10.13-HighSierra.pkg
+
+macports_version: 2.5.4
+macports_tarball_url: "https://distfiles.macports.org/MacPorts/"
+macports_build_from_source: no
+macports_selfupdate: yes
+macports_upgrade_outdated: yes
+macports_force_install: no
+
+macports_installer:
+  macosx:
+    '10.13':
+      name: "MacPorts-{{ macports_version }}-10.13-HighSierra.pkg"
+    '10.12':
+      name: "MacPorts-{{ macports_version }}-10.12-Sierra.pkg"
+    '10.11':
+      name: "MacPorts-{{ macports_version }}-10.11-ElCapitan.pkg"
+    '10.10':
+      name: "MacPorts-{{ macports_version }}-10.10-Yosemite.pkg"
+    '10.9':
+      name: "MacPorts-{{ macports_version }}-10.9-Mavericks.pkg"
+    '10.8':
+      name: "MacPorts-{{ macports_version }}-10.8-MountainLion.pkg"
+    '10.7':
+      name: "MacPorts-{{ macports_version }}-10.7-Lion.pkg"
+    '10.6':
+      name: "MacPorts-{{ macports_version }}-10.6-SnowLeopard.pkg"

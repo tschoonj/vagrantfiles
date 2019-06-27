@@ -1,0 +1,67 @@
+---
+- name: check if Xcode already exists
+  stat:
+    path: "/Applications/Xcode.app"
+  register: Xcodeapp
+
+- name: test whether xcode was uploaded earlier
+  stat:
+    path: "/Users/{{ ansible_ssh_user }}/{{ xcode_src }}"
+    get_checksum: no
+  register: xcode_dl_path
+  when: not Xcodeapp.stat.exists
+
+- name: upload xcode
+  copy:
+    src: "{{ xcode_src }}"
+    dest: "/Users/{{ ansible_ssh_user }}"
+  when: not Xcodeapp.stat.exists and xcode_dl_path.stat.exists == False
+
+- name: check that the xcode archive is valid
+  command: "pkgutil --check-signature {{ xcode_src }} | grep \"Status: signed Apple Software\""
+  when: not Xcodeapp.stat.exists
+
+- name: Check if Xcode is already extracted
+  stat:
+    path: "/Users/{{ ansible_ssh_user }}/Xcode.app"
+    get_checksum: no
+  register: xcode_extracted
+  when: not Xcodeapp.stat.exists
+
+- name: extract the xcode archive in place
+  command: xip -x "/Users/{{ ansible_ssh_user }}/{{ xcode_src }}"
+  when: not Xcodeapp.stat.exists and not xcode_extracted.stat.exists
+
+- name: Move Xcode.app
+  command: mv Xcode.app /Applications
+  when: not Xcodeapp.stat.exists
+
+- name: accept license agreement
+  command: /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license accept
+  become: yes
+  become_method: sudo
+
+- name: install additional xcode components
+  command: installer -pkg /Applications/Xcode.app/Contents/Resources/Packages/XcodeSystemResources.pkg -target /
+  become: yes
+  become_method: sudo
+  when: not Xcodeapp.stat.exists
+
+- name: xcode run first launch
+  command: xcodebuild -runFirstLaunch
+  become: yes
+  become_method: sudo
+  when: not Xcodeapp.stat.exists
+
+- name: check on the status of developer mode
+  command: DevToolsSecurity -status
+  become: yes
+  become_method: sudo
+  register: dev_tools_security_status
+  when: not Xcodeapp.stat.exists
+
+- name: enable developer mode
+  command: DevToolsSecurity -enable
+  become: yes
+  become_method: sudo
+  when: not Xcodeapp.stat.exists and "'disabled' in dev_tools_security_status.stdout"

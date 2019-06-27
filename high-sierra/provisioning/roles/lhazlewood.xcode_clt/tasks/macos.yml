@@ -1,0 +1,38 @@
+---
+- name: Check if Xcode Command Line Tools are installed
+  stat:
+    path: /Library/Developer/CommandLineTools/usr/bin/clang
+  register: xcode_clt_clang
+
+- block:
+  - name: test whether CLT was uploaded earlier
+    stat:
+      path: "/Users/{{ ansible_ssh_user }}/{{ clt_src }}"
+      get_checksum: no
+    register: clt_dl_path
+
+  - name: upload clt
+    copy:
+      src: "{{ clt_src }}"
+      dest: "/Users/{{ ansible_ssh_user }}"
+    when: clt_dl_path.stat.exists == False
+
+  - name: check if dmg is mounted
+    stat:
+      path: "{{ clt_mount_path }}"
+    register: clt_mounted
+
+  - name: mount dmg
+    command: "hdiutil attach {{ clt_src }}"
+    when: not clt_mounted.stat.exists
+
+  - name: install CLT pkg
+    command: "installer -package '{{ clt_pkg }}' -target /"
+    become: yes
+
+  - name: unmount dmg
+    command: "hdiutil detach '{{ clt_mount_path }}'"
+
+  when: not xcode_clt_clang.stat.exists
+
+

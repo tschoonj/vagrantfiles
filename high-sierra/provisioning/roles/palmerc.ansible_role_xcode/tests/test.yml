@@ -1,0 +1,5 @@
+---
+- hosts: osx-standalone.local
+  remote_user: nullgrid
+  roles:
+    - ansible-role-xcode

@@ -1,0 +1,17 @@
+---
+# file: macports/tests/test.yml
+
+- name: tests play
+  hosts: all
+  gather_facts: yes
+  connection: local
+
+  roles:
+    - { role: macports,
+        macports_selfupdate: no,
+        macports_upgrade_outdated: yes }
+
+    - { role: tests,
+        expected_port_version: '2.3.4',
+        tags: test }
+
