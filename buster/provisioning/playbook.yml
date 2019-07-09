@@ -1,0 +1,29 @@
+- hosts: all
+  tasks:
+    - name: update package caches
+      command: apt-get update --allow-releaseinfo-change
+    - name: install gpg
+      apt:
+        name: gpg
+        state: latest
+    - name: add lvserver APT key to sources
+      apt_key:
+        url: http://lvserver.ugent.be/apt/xmi.packages.key
+        state: present
+    - name: install python3-apt
+      apt:
+        name: python3-apt
+        state: latest
+    - name: add lvserver APT repo to sources
+      apt_repository:
+        repo: deb http://lvserver.ugent.be/apt/debian buster stable
+        state: present
+    - name: upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+    - name: install lxde
+      apt:
+        name: lxde
+        state: latest
+  become: yes
