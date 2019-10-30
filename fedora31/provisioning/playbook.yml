@@ -1,0 +1,25 @@
+- hosts: all
+  tasks:
+    - name: install python-dnf
+      yum:
+        name: python3-dnf
+        state: latest
+    - name: update all
+      dnf:
+        name: "*"
+        state: latest
+    - name: add lvserver RPM repo
+      dnf:
+        name: http://lvserver.ugent.be/yum/xmi-repo-key-fedora.noarch.rpm
+        state: present
+    - name: Install GNOME...
+      dnf:
+        name: "@GNOME"
+        state: latest
+    - name: get default runlevel
+      command: systemctl get-default
+      register: runlevel
+    - name: Set graphical runlevel
+      command: systemctl set-default graphical.target
+      when: runlevel.stdout != "graphical.target"
+  become: yes
