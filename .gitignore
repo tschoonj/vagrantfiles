@@ -1,2 +1,4 @@
 .vagrant
 high-sierra/provisioning/files/
+elliotweiser.osx-command-line-tools
+geerlingguy.homebrew
