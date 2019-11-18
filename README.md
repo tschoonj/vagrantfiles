@@ -6,5 +6,6 @@
 * [Ubuntu Eoan](../master/eoan)
 * [Fedora 31](../master/fedora31)
 * [XMI-MSIM master](../master/XMI-MSIM-master)
+* [CentOS 8](../master/centos8)
 
 
