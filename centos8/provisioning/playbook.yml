@@ -4,6 +4,14 @@
       yum:
         name: python3-dnf
         state: latest
+    - name: install vbox dep
+      yum:
+        name: elfutils-libelf-devel
+        state: latest
+    - name: install EPEL
+      yum:
+        name: epel-release
+        state: latest
     - name: update all
       dnf:
         name: "*"
