@@ -1,0 +1,25 @@
+- hosts: all
+  tasks:
+    - name: install EPEL
+      yum:
+        name: epel-release
+        state: latest
+    - name: update all
+      yum:
+        name: "*"
+        state: latest
+    - name: add lvserver RPM repo
+      yum:
+        name: http://lvserver.ugent.be/yum/xmi-repo-key-7.0-1.el7.noarch.rpm
+        state: present
+    - name: Install GNOME...
+      yum:
+        name: "@^GNOME Desktop"
+        state: latest
+    - name: get default runlevel
+      command: systemctl get-default
+      register: runlevel
+    - name: Set graphical runlevel
+      command: systemctl set-default graphical.target
+      when: runlevel.stdout != "graphical.target"
+  become: yes
