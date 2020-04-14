@@ -1,7 +1,19 @@
 - hosts: all
   vars:
     - mm_common_version: 0.9.12
+  handlers:
   tasks:
+    - name: Install growpart
+      yum:
+        name: cloud-utils-growpart
+        state: latest
+    - name: Grow /dev/sda1
+      command: growpart /dev/sda 1
+      ignore_errors: yes
+      register: growpart
+    - name: Resize /dev/sda1
+      command: xfs_growfs /
+      when: growpart.rc == 0
     - name: Install python-dnf
       yum:
         name: python3-dnf
@@ -32,121 +44,173 @@
         state: present
     - name: Install some essential tools
       dnf:
-        name: "vim"
-        state: latest
-    - name: Install GNOME...
-      dnf:
-        name: "@GNOME"
+        name:
+          - vim
+          - singularity
         state: latest
     - name: Install the Development tools
       dnf:
         name: "@Development tools"
         state: present
-    - name: Get default runlevel
-      command: systemctl get-default
-      register: runlevel
-    - name: Set graphical runlevel
-      command: systemctl set-default graphical.target
-      when: runlevel.stdout != "graphical.target"
-    - name: Install XMI-MSIM dependencies
-      yum:
-        name:
-          - hdf5-devel
-          - libsoup-devel
-          - easyRNG-devel
-          - libxslt-devel
-          - libpeas-devel
-          - libpeas-loader-python
-          - gcc-gfortran
-        state: latest
-    - name: Install xraylib dependencies
-      yum:
-        name:
-          - swig
-          - python3-Cython 
-          - python3-numpy
-          - python3-devel
-          - python3-setuptools
-          - autoconf
-          - automake
-          - libtool
-          - xorg-x11-xauth
-    - name: Clone xraylib git repository
-      git:
-        repo: 'https://github.com/tschoonj/xraylib.git'
-        dest: xraylib
-        depth: 1
+    - name: Configure git
+      git_config:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        scope: global
+      vars:
+        input:
+          user.email: 'Tom.Schoonjans@rfi.ac.uk'
+          user.name: 'Tom Schoonjans'
+          core.editor: 'vim'
+          color.ui: 'always'
+      become_user: vagrant
+      loop: "{{ input | dict2items }}"
+    - name: Generate SSH keypair
+      openssh_keypair:
+        path: '~/.ssh/id_rsa'
+        type: rsa
+      become_user: vagrant
+    - name: Read SSH public key
+      shell: cat ~/.ssh/id_rsa.pub
+      register: ssh_pub_key
+      become_user: vagrant
+    - name: Upload to GitHub
+      local_action:
+        module: github_key
+        name: "{{ lookup('pipe','hostname') }}-centos8"
+        force: yes
+        token: "{{ lookup('env','VAGRANT_GITHUB_API_SSH_TOKEN') }}"
+        pubkey: '{{ ssh_pub_key.stdout }}'
       become: no
-      register: xraylib_git_changed
-    - name: Update/Install xraylib
-      block:
-      - name: Compile xraylib
-        shell: 'autoreconf -fi && ./configure --enable-fortran2003 --enable-python --enable-python-numpy PYTHON=python3.6 CYTHON=cython && make clean && make'
-        args:
-          chdir: xraylib
-        become: no
-      - name: Install xraylib
-        shell: 'make install'
-        args:
-          chdir: xraylib
-      when: xraylib_git_changed.changed
-    - name: Install gtkmm-plplot dependencies
-      yum:
-        name:
-          - autoconf
-          - automake
-          - libtool
-          - plplot-devel
-          - gtkmm30-devel
-    - name: Check if mm-common is installed
-      stat:
-        path: '/usr/bin/mm-common-prepare'
-      register: mm_common_get
-    - name: Install mm-common
-      block:
-        - name: Download mm-common source
-          get_url:
-            url: 'https://download.gnome.org/sources/mm-common/0.9/mm-common-{{ mm_common_version }}.tar.xz'
-            dest: /home/vagrant
-          become: no
-        - name: Untar mm-common
-          unarchive:
-            remote_src: yes
-            src: 'mm-common-{{ mm_common_version }}.tar.xz'
-            dest: /home/vagrant
-          become: no
-        - name: Compile mm-common
-          shell: './configure --prefix=/usr && make'
-          args:
-            chdir: 'mm-common-{{ mm_common_version }}'
-          become: no
-        - name: Install mm-common
-          shell: 'make install'
-          args:
-            chdir: 'mm-common-{{ mm_common_version }}'
-      when: mm_common_get.stat.exists == False
-    - name: Clone gtkmm-plplot git repository
+      register: github_key_upload
+    - name: sleep 5 seconds
+      pause:
+        seconds: 5
+      when: github_key_upload.changed
+    - name: Clone singularity-packaging-scripts git repository
       git:
-        repo: 'https://github.com/tschoonj/gtkmm-plplot.git'
-        dest: gtkmm-plplot
-        depth: 1
+        repo: 'git@github.com:tschoonj/singularity-packaging-scripts.git'
+        dest: github/singularity-packaging-scripts
+        accept_hostkey: yes
       become: no
-      register: gtkmm_plplot_git_changed
-    - name: Update/Install gtkmm-plplot
-      block:
-      - name: Compile gtkmm-plplot
-        shell: 'autoreconf -fi && ./configure && make clean && make'
-        args:
-          chdir: gtkmm-plplot
-        become: no
-      - name: Install gtkmm-plplot
-        shell: 'make install'
-        args:
-          chdir: gtkmm-plplot
-      when: gtkmm_plplot_git_changed.changed
-    - name: Clone XMI-MSIM git repository
-      git:
-        repo: 'https://github.com/tschoonj/xmimsim.git'
-        dest: xmimsim
-      become: no
+#    - name: Install GNOME...
+#      dnf:
+#        name: "@GNOME"
+#        state: latest
+#    - name: Get default runlevel
+#      command: systemctl get-default
+#      register: runlevel
+#    - name: Set graphical runlevel
+#      command: systemctl set-default graphical.target
+#      when: runlevel.stdout != "graphical.target"
+#    - name: Switch to X from Wayland
+#      ini_file:
+#        path: /etc/gdm/custom.conf
+#        section: daemon
+#        option: "{{ item.option }}"
+#        value: "{{ item.value }}"
+#      loop:
+#        - { option: WaylandEnable, value: 'false' }
+#        - { option: DefaultSession, value: gnome-xorg.desktop }
+#    - name: Install XMI-MSIM dependencies
+#      yum:
+#        name:
+#          - hdf5-devel
+#          - libsoup-devel
+#          - easyRNG-devel
+#          - libxslt-devel
+#          - libpeas-devel
+#          - libpeas-loader-python
+#          - gcc-gfortran
+#        state: latest
+#    - name: Install xraylib dependencies
+#      yum:
+#        name:
+#          - swig
+#          - python3-Cython 
+#          - python3-numpy
+#          - python3-devel
+#          - python3-setuptools
+#          - autoconf
+#          - automake
+#          - libtool
+#          - xorg-x11-xauth
+#    - name: Clone xraylib git repository
+#      git:
+#        repo: 'https://github.com/tschoonj/xraylib.git'
+#        dest: xraylib
+#        depth: 1
+#      become: no
+#      register: xraylib_git_changed
+#    - name: Update/Install xraylib
+#      block:
+#      - name: Compile xraylib
+#        shell: 'autoreconf -fi && ./configure --enable-fortran2003 --enable-python --enable-python-numpy PYTHON=python3.6 CYTHON=cython && make clean && make'
+#        args:
+#          chdir: xraylib
+#        become: no
+#      - name: Install xraylib
+#        shell: 'make install'
+#        args:
+#          chdir: xraylib
+#      when: xraylib_git_changed.changed
+#    - name: Install gtkmm-plplot dependencies
+#      yum:
+#        name:
+#          - autoconf
+#          - automake
+#          - libtool
+#          - plplot-devel
+#          - gtkmm30-devel
+#    - name: Check if mm-common is installed
+#      stat:
+#        path: '/usr/bin/mm-common-prepare'
+#      register: mm_common_get
+#    - name: Install mm-common
+#      block:
+#        - name: Download mm-common source
+#          get_url:
+#            url: 'https://download.gnome.org/sources/mm-common/0.9/mm-common-{{ mm_common_version }}.tar.xz'
+#            dest: /home/vagrant
+#          become: no
+#        - name: Untar mm-common
+#          unarchive:
+#            remote_src: yes
+#            src: 'mm-common-{{ mm_common_version }}.tar.xz'
+#            dest: /home/vagrant
+#          become: no
+#        - name: Compile mm-common
+#          shell: './configure --prefix=/usr && make'
+#          args:
+#            chdir: 'mm-common-{{ mm_common_version }}'
+#          become: no
+#        - name: Install mm-common
+#          shell: 'make install'
+#          args:
+#            chdir: 'mm-common-{{ mm_common_version }}'
+#      when: mm_common_get.stat.exists == False
+#    - name: Clone gtkmm-plplot git repository
+#      git:
+#        repo: 'https://github.com/tschoonj/gtkmm-plplot.git'
+#        dest: gtkmm-plplot
+#        depth: 1
+#      become: no
+#      register: gtkmm_plplot_git_changed
+#    - name: Update/Install gtkmm-plplot
+#      block:
+#      - name: Compile gtkmm-plplot
+#        shell: 'autoreconf -fi && ./configure && make clean && make'
+#        args:
+#          chdir: gtkmm-plplot
+#        become: no
+#      - name: Install gtkmm-plplot
+#        shell: 'make install'
+#        args:
+#          chdir: gtkmm-plplot
+#      when: gtkmm_plplot_git_changed.changed
+#    - name: Clone XMI-MSIM git repository
+#      git:
+#        repo: 'https://github.com/tschoonj/xmimsim.git'
+#        dest: xmimsim
+#      become: no
   become: yes
