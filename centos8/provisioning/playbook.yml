@@ -47,6 +47,7 @@
         name:
           - vim
           - singularity
+          - wget
         state: latest
     - name: Install the Development tools
       dnf:
@@ -93,6 +94,53 @@
         dest: github/singularity-packaging-scripts
         accept_hostkey: yes
       become: no
+    - name: Clone liquidprompt
+      git:
+        repo: 'https://github.com/nojhan/liquidprompt.git'
+        dest: github/liquidprompt
+        accept_hostkey: yes
+      become: no
+    - name: Ensure vagrant user bashrc activates liquidprompt
+      blockinfile:
+        dest: "/home/vagrant/.bashrc"
+        block: |
+          [[ $- = *i* ]] && source ~/github/liquidprompt/liquidprompt
+        marker: '# {mark} ANSIBLE MANAGED BLOCK - LIQUIDPROMPT'
+        create: yes
+      become_user: vagrant
+    - name: Install pip3
+      yum:
+        name: python3-pip
+        state: latest
+    - name: Install github3 python package
+      pip:
+        name: github3.py
+    - name: Create Downloads directory
+      file:
+        path: /home/vagrant/Downloads
+        state: directory
+      become_user: vagrant
+    - name: Look for latest release of hub
+      github_release:
+        user: github
+        repo: hub
+        action: latest_release
+      register: hub_latest_release
+    - name: Download latest release of hub
+      get_url:
+        url: "https://github.com/github/hub/releases/download/{{ hub_latest_release.tag}}/hub-linux-amd64-{{ hub_latest_release.tag[1:]}}.tgz"
+        dest: "/home/vagrant/Downloads"
+      become_user: vagrant
+      register: hub_downloaded
+    - name: Extract
+      unarchive:
+        src: "/home/vagrant/Downloads/hub-linux-amd64-{{ hub_latest_release.tag[1:]}}.tgz"
+        dest: /usr/local/bin
+        extra_opts:
+          - --strip=2
+          - '*/bin/hub'
+        remote_src: true
+      when: hub_downloaded.changed
 #    - name: Install GNOME...
 #      dnf:
 #        name: "@GNOME"
